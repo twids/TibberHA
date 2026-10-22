@@ -6,3 +6,51 @@ inspect_settings:
       required: false
       selector:
         text:
+set_vehicle_soc:
+  name: Report vehicle state of charge
+  description: Write SoC once and verify by reading it back. Does not start charging.
+  fields:
+    vehicle_id:
+      selector:
+        text:
+    battery_level:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+set_departure_time:
+  name: Set weekday departure time
+  description: Change only the specified weekday, then verify read-back. Uses local wall-clock time.
+  fields:
+    vehicle_id:
+      selector:
+        text:
+    weekday:
+      required: true
+      selector:
+        select:
+          options: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+    time:
+      required: true
+      example: '06:00'
+      selector:
+        text:
+    clear_other_days:
+      default: false
+      selector:
+        boolean:
+clear_departure_times:
+  name: Remove weekday departure times
+  description: Remove only the listed departure times. Does not disable smart charging.
+  fields:
+    vehicle_id:
+      selector:
+        text:
+    weekdays:
+      required: true
+      selector:
+        select:
+          multiple: true
+          options: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]

@@ -1,0 +1,212 @@
+blueprint:
+  name: Tibber – morning minimum using Renault SoC
+  description: >-
+    Report SoC once at plug-in. Below 40%, report real SoC + 60 and set
+    the next Monday-Friday 06:00 departure. At 40%, remove departures and
+    report real SoC once. Tibber owns all price scheduling.
+    Create an input_text helper (maximum length 255) for persistent session state.
+    No writes on HA startup unless an existing waiting session has reached 40%.
+    Weekdays do not exclude public holidays. Review any existing charging automations.
+  domain: automation
+  input:
+    soc:
+      name: Renault battery percentage
+      selector:
+        entity:
+          domain: sensor
+    plugged:
+      name: Renault cable connected
+      selector:
+        entity:
+          domain: binary_sensor
+    location:
+      name: Renault location (home/not_home)
+      selector:
+        entity:
+          domain: device_tracker
+    settings:
+      name: TibberHA vehicle settings sensor
+      selector:
+        entity:
+          domain: sensor
+          integration: tibber_ha
+    session:
+      name: Persistent session state (input_text, max 255)
+      selector:
+        entity:
+          domain: input_text
+
+mode: queued
+max: 10
+max_exceeded: warning
+
+variables:
+  soc_entity: !input soc
+  plug_entity: !input plugged
+  location_entity: !input location
+  settings_entity: !input settings
+  session_entity: !input session
+  event: "{{ trigger.id if trigger is defined else 'manual' }}"
+  real_soc: "{{ states(soc_entity) | float(-1) }}"
+  valid_soc: "{{ is_number(states(soc_entity)) and 0 <= real_soc <= 100 }}"
+  at_home: "{{ is_state(location_entity, 'home') }}"
+  connected: "{{ is_state(plug_entity, 'on') }}"
+  saved: "{{ states(session_entity) | from_json({}) }}"
+  phase: "{{ saved.get('phase', 'idle') if saved is mapping else 'idle' }}"
+  vehicle_id: "{{ state_attr(settings_entity, 'vehicle_id') }}"
+  starting: "{{ event == 'plug' or phase == 'awaiting_input' }}"
+  minimum_session: "{{ starting and real_soc < 40 }}"
+  next_departure: >-
+    {% set t = today_at('06:00') %}
+    {% if t <= now() %}{% set t = t + timedelta(days=1) %}{% endif %}
+    {% set skip = {5: 2, 6: 1}.get(t.weekday(), 0) %}
+    {{ (t + timedelta(days=skip)).isoformat() }}
+  report_soc: >-
+    {{ (real_soc | round(0, 'floor') | int) + (60 if minimum_session else 0) }}
+  weekdays: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+
+triggers:
+  - trigger: state
+    entity_id: !input plugged
+    from: 'off'
+    to: 'on'
+    id: plug
+  - trigger: state
+    entity_id: !input plugged
+    from: 'on'
+    to: 'off'
+    id: unplug
+  - trigger: state
+    entity_id: !input soc
+    id: observe
+  - trigger: state
+    entity_id: !input location
+    id: observe
+  - trigger: homeassistant
+    event: start
+    id: startup
+  - trigger: time
+    at: '06:00:00'
+    id: deadline
+
+actions:
+  - choose:
+      - conditions: "{{ event == 'unplug' }}"
+        sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: !input session
+            data:
+              value: '{"phase":"idle"}'
+
+      - conditions: >-
+          {{ event == 'plug' and connected and
+             (not valid_soc or states(location_entity) in ['unknown', 'unavailable']) }}
+        sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: !input session
+            data:
+              value: '{"phase":"awaiting_input"}'
+          - action: persistent_notification.create
+            data:
+              notification_id: "{{ 'tibber_morning_' ~ vehicle_id }}"
+              title: Tibber – waiting for Renault data
+              message: >-
+                Plug-in was detected but battery percentage or location is unavailable.
+                No charging settings have been written. Setup resumes when valid data arrives.
+
+      - conditions: >-
+          {{ connected and at_home and valid_soc and vehicle_id and
+             (starting or (phase in ['waiting', 'expired'] and real_soc >= 40)) }}
+        sequence:
+          # Persist before network writes. A restart during writing requires review,
+          # not automatic resubmission of a write with an unknown outcome.
+          - action: input_text.set_value
+            target:
+              entity_id: !input session
+            data:
+              value: "{{ {'phase': 'writing', 'deadline': next_departure} | tojson }}"
+          - variables:
+              schedule_result: {}
+              soc_result: {}
+          - choose:
+              - conditions: "{{ minimum_session }}"
+                sequence:
+                  - action: tibber_ha.set_departure_time
+                    continue_on_error: true
+                    data:
+                      vehicle_id: "{{ vehicle_id }}"
+                      weekday: "{{ weekdays[as_datetime(next_departure).weekday()] }}"
+                      time: '06:00'
+                      clear_other_days: true
+                    response_variable: schedule_result
+            default:
+              - action: tibber_ha.clear_departure_times
+                continue_on_error: true
+                data:
+                  vehicle_id: "{{ vehicle_id }}"
+                  weekdays: "{{ weekdays }}"
+                response_variable: schedule_result
+          - if: "{{ schedule_result is mapping and schedule_result.get('verified', false) }}"
+            then:
+              - action: tibber_ha.set_vehicle_soc
+                continue_on_error: true
+                data:
+                  vehicle_id: "{{ vehicle_id }}"
+                  battery_level: "{{ report_soc | int }}"
+                response_variable: soc_result
+          - if: >-
+              {{ schedule_result is mapping and schedule_result.get('verified', false)
+                 and soc_result is mapping and soc_result.get('verified', false) }}
+            then:
+              - action: input_text.set_value
+                target:
+                  entity_id: !input session
+                data:
+                  value: >-
+                    {{ {'phase': 'waiting' if minimum_session else 'complete',
+                        'deadline': next_departure if minimum_session else none} | tojson }}
+            else:
+              - action: input_text.set_value
+                target:
+                  entity_id: !input session
+                data:
+                  value: '{"phase":"error"}'
+              - action: persistent_notification.create
+                data:
+                  notification_id: "{{ 'tibber_morning_' ~ vehicle_id }}"
+                  title: Tibber – update requires review
+                  message: >-
+                    A departure/SoC write failed or could not be verified.
+                    Check TibberHA settings and the automation trace before retrying.
+                    Tibber may already have applied part of the change.
+
+      - conditions: "{{ event == 'startup' and phase == 'writing' }}"
+        sequence:
+          - action: persistent_notification.create
+            data:
+              notification_id: "{{ 'tibber_morning_' ~ vehicle_id }}"
+              title: Tibber – interrupted session update
+              message: >-
+                HA restarted during a write. Inspect actual Tibber settings before
+                starting a new session. No automatic write retry was performed.
+
+      - conditions: >-
+          {{ event in ['deadline', 'startup', 'observe'] and phase == 'waiting' and connected and at_home
+             and (not valid_soc or real_soc < 40)
+             and as_timestamp(saved.get('deadline'), 0) <= as_timestamp(now()) }}
+        sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: !input session
+            data:
+              value: "{{ {'phase': 'expired', 'deadline': saved.get('deadline')} | tojson }}"
+          - action: persistent_notification.create
+            data:
+              notification_id: "{{ 'tibber_morning_' ~ vehicle_id }}"
+              title: Tibber – morning minimum not confirmed
+              message: >-
+                At departure the latest Renault SoC was {{ states(soc_entity) }}%.
+                Check the car and Tibber. HA has not forced charging or silently
+                moved the deadline to another day.

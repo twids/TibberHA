@@ -20,7 +20,7 @@ class SettingsSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
-        return "read_only"
+        return "connected"
 
     @property
     def extra_state_attributes(self):
@@ -31,5 +31,5 @@ class SettingsSensor(CoordinatorEntity, SensorEntity):
             "vehicle_id": self.coordinator.entry.data["vehicle_id"],
             "setting_keys": [s.get("key") for s in data.get("userSettings", [])],
             "departure_times": (data.get("charging") or {}).get("departureTimes"),
-            "write_enabled": False,
+            "write_enabled": True,
         }

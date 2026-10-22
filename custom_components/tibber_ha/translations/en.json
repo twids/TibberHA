@@ -3,12 +3,12 @@
     "step": {
       "user": {
         "title": "Connect Tibber app account",
-        "description": "Experimental, read-only discovery. Credentials stay in Home Assistant. No charging settings will be changed.",
+        "description": "Connect the Tibber app API. Credentials stay in Home Assistant. Setup only reads data; explicit actions can later change SoC and departure times.",
         "data": {"username": "Email", "password": "Password"}
       },
       "vehicle": {
         "title": "Select vehicle",
-        "data": {"vehicle_id": "Vehicle"}
+        "data": {"vehicle_id": "Vehicle", "home_id": "Home"}
       }
     },
     "error": {

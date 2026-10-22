@@ -5,7 +5,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from tibberlib import TibberError
-from tibberlib.discovery import list_vehicles, login, read_vehicle
+from tibberlib.discovery import list_homes, list_vehicles, login, read_vehicle
 
 from .const import DOMAIN
 
@@ -20,9 +20,11 @@ class TibberHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 async with httpx.AsyncClient() as http:
                     token = await login(http, user_input[CONF_USERNAME], user_input[CONF_PASSWORD])
                     vehicles = await list_vehicles(http, token)
+                    homes = await list_homes(http, token)
                 self._credentials = user_input
                 self._token = token
                 self._vehicles = {v["id"]: v.get("title") or v["id"] for v in vehicles}
+                self._homes = {h["id"]: h.get("title") or h["id"] for h in homes}
                 if not self._vehicles:
                     errors["base"] = "no_vehicles"
                 else:
@@ -48,9 +50,11 @@ class TibberHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=self._vehicles[vehicle_id],
-                    data={**self._credentials, "vehicle_id": vehicle_id},
+                    data={**self._credentials, "vehicle_id": vehicle_id,
+                          "home_id": user_input["home_id"]},
                 )
         return self.async_show_form(
             step_id="vehicle", errors=errors,
-            data_schema=vol.Schema({vol.Required("vehicle_id"): vol.In(self._vehicles)}),
+            data_schema=vol.Schema({vol.Required("vehicle_id"): vol.In(self._vehicles),
+                                    vol.Required("home_id"): vol.In(self._homes)}),
         )

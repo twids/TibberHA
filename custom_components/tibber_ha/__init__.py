@@ -1,4 +1,5 @@
-"""Read-only discovery stage; no charge control or SoC writes enabled."""
+"""Tibber app account and explicit HA actions. No autonomous charging policy."""
+import asyncio
 import time
 from datetime import timedelta
 
@@ -8,8 +9,8 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from tibberlib import TibberError
-from tibberlib.discovery import login, read_vehicle
+from tibberlib import TibberClient, TibberError
+from tibberlib.discovery import list_homes, login, read_vehicle
 
 from .const import DOMAIN
 
@@ -23,6 +24,7 @@ class TibberCoordinator(DataUpdateCoordinator):
         self.http = httpx.AsyncClient()
         self.token = None
         self.token_until = 0
+        self.write_lock = asyncio.Lock()
 
     async def _async_update_data(self):
         try:
@@ -30,6 +32,12 @@ class TibberCoordinator(DataUpdateCoordinator):
                 self.token = await login(self.http, self.entry.data[CONF_USERNAME],
                                          self.entry.data[CONF_PASSWORD])
                 self.token_until = time.monotonic() + 17 * 3600
+            if "home_id" not in self.entry.data:
+                homes = await list_homes(self.http, self.token)
+                if len(homes) == 1:
+                    self.hass.config_entries.async_update_entry(
+                        self.entry, data={**self.entry.data, "home_id": homes[0]["id"]}
+                    )
             return await read_vehicle(self.token, self.entry.data["vehicle_id"])
         except TibberError as err:
             self.token = None
@@ -70,6 +78,8 @@ async def async_setup_entry(hass, entry):
             supports_response=SupportsResponse.ONLY,
         )
     await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR])
+    from .actions import async_register_actions
+    async_register_actions(hass)
     return True
 
 
@@ -80,4 +90,6 @@ async def async_unload_entry(hass, entry):
         await coordinator.http.aclose()
         if not hass.data[DOMAIN]:
             hass.services.async_remove(DOMAIN, "inspect_settings")
+            for name in ("set_vehicle_soc", "set_departure_time", "clear_departure_times"):
+                hass.services.async_remove(DOMAIN, name)
     return unloaded

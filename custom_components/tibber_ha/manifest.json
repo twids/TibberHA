@@ -1,12 +1,12 @@
 {
   "domain": "tibber_ha",
   "name": "TibberHA (experimental)",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "config_flow": true,
   "documentation": "https://github.com/twids/TibberHA",
   "issue_tracker": "https://github.com/twids/TibberHA/issues",
   "codeowners": ["@twids"],
   "iot_class": "cloud_polling",
   "integration_type": "hub",
-  "requirements": ["tibberlib @ https://github.com/twids/TibberLib/archive/3f7dfef72c6e2882e9791ac4cbbeea100a26172a.zip"]
+  "requirements": ["tibberlib @ https://github.com/twids/TibberLib/archive/519a9e811ad3c0861cea9cab1916061eb463f73d.zip"]
 }
