@@ -1,0 +1,8 @@
+inspect_settings:
+  name: Inspect vehicle settings (read only)
+  description: Return server setting definitions for the configured vehicle. Does not change charging.
+  fields:
+    vehicle_id:
+      required: true
+      selector:
+        text:

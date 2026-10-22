@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Tibber app account",
+        "description": "Experimental, read-only discovery. Credentials stay in Home Assistant. No charging settings will be changed.",
+        "data": {"username": "Email", "password": "Password"}
+      },
+      "vehicle": {
+        "title": "Select vehicle",
+        "data": {"vehicle_id": "Vehicle"}
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to authenticate or read the app API. Check credentials and logs; the private API may have changed.",
+      "no_vehicles": "No vehicles were returned by the account."
+    },
+    "abort": {"already_configured": "This vehicle is already configured."}
+  }
+}

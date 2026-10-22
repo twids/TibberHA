@@ -1,0 +1,1 @@
+DOMAIN = "tibber_ha"
