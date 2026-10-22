@@ -46,9 +46,11 @@ async def async_setup_entry(hass, entry):
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     if not hass.services.has_service(DOMAIN, "inspect_settings"):
         async def inspect_settings(call):
-            vehicle_id = call.data["vehicle_id"]
-            selected = next((c for c in hass.data[DOMAIN].values()
+            vehicle_id = call.data.get("vehicle_id")
+            candidates = list(hass.data[DOMAIN].values())
+            selected = (next((c for c in candidates
                              if c.entry.data["vehicle_id"] == vehicle_id), None)
+                        if vehicle_id else candidates[0] if len(candidates) == 1 else None)
             if selected is None:
                 raise HomeAssistantError("Vehicle is not configured in TibberHA")
             await selected.async_request_refresh()
@@ -56,14 +58,15 @@ async def async_setup_entry(hass, entry):
                 raise HomeAssistantError("Unable to read vehicle settings")
             data = selected.data
             # Explicit, local inspection only. No tokens, credentials or action URLs.
-            return {"settings": data.get("userSettings", []),
+            return {"vehicle_id": selected.entry.data["vehicle_id"],
+                    "settings": data.get("userSettings", []),
                     "layout": data.get("settingsScreen", []),
                     "charging": data.get("charging"),
                     "actions": [{k: a.get(k) for k in ("text", "type", "action", "enabled")}
                                 for a in data.get("actionButtons", [])]}
         hass.services.async_register(
             DOMAIN, "inspect_settings", inspect_settings,
-            schema=vol.Schema({vol.Required("vehicle_id"): str}),
+            schema=vol.Schema({vol.Optional("vehicle_id"): str}),
             supports_response=SupportsResponse.ONLY,
         )
     await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR])

@@ -28,6 +28,7 @@ class SettingsSensor(CoordinatorEntity, SensorEntity):
         # Only disclose setting key metadata here. Raw values/actions may
         # contain account information and belong in a targeted local inspection.
         return {
+            "vehicle_id": self.coordinator.entry.data["vehicle_id"],
             "setting_keys": [s.get("key") for s in data.get("userSettings", [])],
             "departure_times": (data.get("charging") or {}).get("departureTimes"),
             "write_enabled": False,

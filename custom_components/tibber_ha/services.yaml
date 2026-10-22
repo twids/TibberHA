@@ -3,6 +3,6 @@ inspect_settings:
   description: Return server setting definitions for the configured vehicle. Does not change charging.
   fields:
     vehicle_id:
-      required: true
+      required: false
       selector:
         text:
