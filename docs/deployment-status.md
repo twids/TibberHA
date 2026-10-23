@@ -56,3 +56,28 @@ Shared infrastructure documentation update was attempted but rejected by the
 local filesystem (bad file descriptor). The existing document remained readable
 and its original contents were verified intact. These deployment facts are
 preserved here for later synchronization.
+
+## Recovery fix — 2026-10-23
+
+The recorded incident was not caused by late home location. CSV history (UTC
+converted to Europe/Stockholm) showed TibberHA unavailable at 16:30:23,
+SoC 84% at 16:35:28, home at 16:35:31, plug-in at 16:41:29 and TibberHA
+connected again at 16:45:24. The helper stayed idle through that interval.
+HA logged `Error fetching tibber_ha data: Vehicle discovery failed`.
+Similar unavailable intervals lasted until the next 15-minute poll. Token
+expiry is a hypothesis; the old library suppressed the underlying cause.
+
+Version 0.2.1 changes the coordinator to renew authentication after two hours
+and retry a failed read once with fresh authentication. It never retries a
+mutation automatically. The blueprint records awaiting_input if TibberHA,
+SoC or home confirmation is missing at plug-in and observes TibberHA recovery.
+A completed session does not write again on ordinary settings polls.
+
+Validation: 16 offline tests pass. The isolated HA 2026.10.2 engine passed all
+eight scenarios, including unavailable-at-plug-in/recovery exactly once and
+late home confirmation. Services were simulated and network disabled.
+Production files were backed up locally under ignored work/live-backup-20261023
+and updated through Studio Code Server. Configuration validation passed.
+The library dependency remains pinned to 519a9e8; improved library diagnostics
+are a separate unpublished change and are not installed by this HA hotfix.
+GitHub connector write access returned HTTP 403; remote publication is pending.

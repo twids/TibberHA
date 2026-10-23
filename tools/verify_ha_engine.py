@@ -57,7 +57,7 @@ async def main():
             }, hass) is hass
             hass.states.async_set(INPUTS["soc"], "20")
             hass.states.async_set(INPUTS["plugged"], "off")
-            hass.states.async_set(INPUTS["location"], "home")
+            hass.states.async_set(INPUTS["location"], "not_home")
             hass.states.async_set(INPUTS["settings"], "connected", {"vehicle_id": "test-zoe"})
             await hass.async_start()
             await hass.async_block_till_done()
@@ -68,6 +68,14 @@ async def main():
 
             hass.states.async_set(INPUTS["plugged"], "on")
             await hass.async_block_till_done()
+            assert not calls, calls
+            assert '"awaiting_input"' in hass.states.get(INPUTS["session"]).state
+            hass.states.async_set(INPUTS["soc"], "20")
+            await hass.async_block_till_done()
+            assert not calls, calls
+            hass.states.async_set(INPUTS["location"], "home")
+            await hass.async_block_till_done()
+            print("PASS: plug-in before home update waits and resumes once home is confirmed")
             assert [name for name, _ in calls] == ["set_departure_time", "set_vehicle_soc"], calls
             assert calls[-1][1]["battery_level"] == 80, calls
             assert calls[0][1]["clear_other_days"] is True, calls
@@ -104,17 +112,38 @@ async def main():
             assert len(calls) == 6, calls
             print("PASS: unavailable -> on is not treated as a new plug-in")
 
+            # Reproduce the actual incident: home/SoC were already correct,
+            # but TibberHA was unavailable during the cable transition.
+            hass.states.async_set(INPUTS["plugged"], "off")
+            await hass.async_block_till_done()
+            hass.states.async_set(INPUTS["settings"], "unavailable")
+            hass.states.async_set(INPUTS["soc"], "84")
+            await hass.async_block_till_done()
+            hass.states.async_set(INPUTS["plugged"], "on")
+            await hass.async_block_till_done()
+            assert len(calls) == 6, calls
+            assert '"awaiting_input"' in hass.states.get(INPUTS["session"]).state
+            hass.states.async_set(INPUTS["settings"], "connected", {"vehicle_id": "test-zoe"})
+            await hass.async_block_till_done()
+            assert [name for name, _ in calls[6:]] == ["clear_departure_times", "set_vehicle_soc"], calls
+            assert calls[-1][1]["battery_level"] == 84
+            # Subsequent coordinator refreshes must not report SoC again.
+            hass.states.async_set(INPUTS["settings"], "connected", {"vehicle_id": "test-zoe", "poll": 2})
+            await hass.async_block_till_done()
+            assert len(calls) == 8, calls
+            print("PASS: unavailable TibberHA at plug-in resumes once when it recovers")
+
             hass.states.async_set(INPUTS["plugged"], "off")
             await hass.async_block_till_done()
             hass.states.async_set(INPUTS["soc"], "20")
             fail_schedule = True
             hass.states.async_set(INPUTS["plugged"], "on")
             await hass.async_block_till_done()
-            assert len(calls) == 7 and calls[-1][0] == "set_departure_time", calls
+            assert len(calls) == 9 and calls[-1][0] == "set_departure_time", calls
             assert '"error"' in hass.states.get(INPUTS["session"]).state
             hass.states.async_set(INPUTS["soc"], "21")
             await hass.async_block_till_done()
-            assert len(calls) == 7, calls
+            assert len(calls) == 9, calls
             print("PASS: failed schedule prevents SoC write and automatic retries")
         finally:
             await hass.async_stop()

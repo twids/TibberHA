@@ -13,6 +13,7 @@ from tibberlib import TibberClient, TibberError
 from tibberlib.discovery import list_homes, login, read_vehicle
 
 from .const import DOMAIN
+from .recovery import read_with_reauthentication
 
 
 class TibberCoordinator(DataUpdateCoordinator):
@@ -26,19 +27,27 @@ class TibberCoordinator(DataUpdateCoordinator):
         self.token_until = 0
         self.write_lock = asyncio.Lock()
 
+    async def _authenticate(self):
+        self.token = await login(self.http, self.entry.data[CONF_USERNAME],
+                                 self.entry.data[CONF_PASSWORD])
+        # Conservative renewal before the observed ~3-hour failures. The server's
+        # actual token lifetime is undocumented; read recovery also handles early expiry.
+        self.token_until = time.monotonic() + 2 * 3600
+
+    async def _read_snapshot(self):
+        if not self.token or time.monotonic() >= self.token_until:
+            await self._authenticate()
+        if "home_id" not in self.entry.data:
+            homes = await list_homes(self.http, self.token)
+            if len(homes) == 1:
+                self.hass.config_entries.async_update_entry(
+                    self.entry, data={**self.entry.data, "home_id": homes[0]["id"]}
+                )
+        return await read_vehicle(self.token, self.entry.data["vehicle_id"])
+
     async def _async_update_data(self):
         try:
-            if not self.token or time.monotonic() >= self.token_until:
-                self.token = await login(self.http, self.entry.data[CONF_USERNAME],
-                                         self.entry.data[CONF_PASSWORD])
-                self.token_until = time.monotonic() + 17 * 3600
-            if "home_id" not in self.entry.data:
-                homes = await list_homes(self.http, self.token)
-                if len(homes) == 1:
-                    self.hass.config_entries.async_update_entry(
-                        self.entry, data={**self.entry.data, "home_id": homes[0]["id"]}
-                    )
-            return await read_vehicle(self.token, self.entry.data["vehicle_id"])
+            return await read_with_reauthentication(self._read_snapshot, self._authenticate)
         except TibberError as err:
             self.token = None
             raise UpdateFailed(str(err)) from err

@@ -54,6 +54,7 @@ variables:
   saved: "{{ states(session_entity) | from_json({}) }}"
   phase: "{{ saved.get('phase', 'idle') if saved is mapping else 'idle' }}"
   vehicle_id: "{{ state_attr(settings_entity, 'vehicle_id') }}"
+  api_ready: "{{ is_state(settings_entity, 'connected') and vehicle_id }}"
   starting: "{{ event == 'plug' or phase == 'awaiting_input' }}"
   minimum_session: "{{ starting and real_soc < 40 }}"
   next_departure: >-
@@ -82,6 +83,9 @@ triggers:
   - trigger: state
     entity_id: !input location
     id: observe
+  - trigger: state
+    entity_id: !input settings
+    id: observe
   - trigger: homeassistant
     event: start
     id: startup
@@ -101,7 +105,7 @@ actions:
 
       - conditions: >-
           {{ event == 'plug' and connected and
-             (not valid_soc or states(location_entity) in ['unknown', 'unavailable']) }}
+             (not valid_soc or not at_home or not api_ready) }}
         sequence:
           - action: input_text.set_value
             target:
@@ -113,11 +117,11 @@ actions:
               notification_id: "{{ 'tibber_morning_' ~ vehicle_id }}"
               title: Tibber – waiting for Renault data
               message: >-
-                Plug-in was detected but battery percentage or location is unavailable.
+                Plug-in was detected but battery percentage, home location or TibberHA readiness is not confirmed.
                 No charging settings have been written. Setup resumes when valid data arrives.
 
       - conditions: >-
-          {{ connected and at_home and valid_soc and vehicle_id and
+          {{ connected and at_home and valid_soc and api_ready and
              (starting or (phase in ['waiting', 'expired'] and real_soc >= 40)) }}
         sequence:
           # Persist before network writes. A restart during writing requires review,
