@@ -78,6 +78,26 @@ eight scenarios, including unavailable-at-plug-in/recovery exactly once and
 late home confirmation. Services were simulated and network disabled.
 Production files were backed up locally under ignored work/live-backup-20261023
 and updated through Studio Code Server. Configuration validation passed.
-The library dependency remains pinned to 519a9e8; improved library diagnostics
-are a separate unpublished change and are not installed by this HA hotfix.
-GitHub connector write access returned HTTP 403; remote publication is pending.
+Both repositories are now published after Git Credential Manager login.
+HA pins TibberLib commit 5af539b (0.2.1), providing safe timeout/network/
+WebSocket diagnostics without server messages, credentials or tokens.
+
+### Post-restart verification — 2026-10-24 01:14 Europe/Stockholm
+
+HA returned successfully with TibberHA 0.2.1. The corrected production trace
+at 2026-10-23 21:42:34 includes the TibberHA trigger and api_ready conditions;
+startup with an already complete session made no writes. After the final
+library dependency restart, the settings sensor remained connected continuously
+from 21:45:54 through 01:13:47 (over 3 h 27 min, exceeding the previous
+approximately 3 h 15 min failure pattern). A fresh inspect_settings action
+also succeeded at 01:14. Smart charging remains enabled and departures empty.
+Real Renault SoC is now 99%; the existing complete session is preserved, so
+no ongoing SoC resubmission was performed. This is not an 80% charge stop.
+
+All 43 library/integration tests pass. GitHub checks for implementation commit
+5466816 and dependency pin f27d0cf passed; latest run:
+https://github.com/twids/TibberHA/actions/runs/40013812557
+
+The incident recovery fix is installed and verified at code, engine and live
+read/startup levels. A new physical plug-in during an API outage and a real
+weekday <40% charge outcome remain field validation, not proven outcomes.
