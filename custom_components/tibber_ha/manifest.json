@@ -8,5 +8,5 @@
   "codeowners": ["@twids"],
   "iot_class": "cloud_polling",
   "integration_type": "hub",
-  "requirements": ["tibberlib @ https://github.com/twids/TibberLib/archive/519a9e811ad3c0861cea9cab1916061eb463f73d.zip"]
+  "requirements": ["tibberlib @ https://github.com/twids/TibberLib/archive/5af539bc6a979d977217580271d65eabd4037d4d.zip"]
 }
