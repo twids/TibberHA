@@ -19,8 +19,14 @@
   automation editor. The earlier report that it remained enabled was incorrect.
   Reliable Tibber-side pause/resume
   has not been identified; the minimum policy does not replace that function.
-* Offline integration tests: 15 passing. Full isolated HA engine test script
-  is provided but NOT executed: local Docker daemon is unavailable.
+* Offline integration tests: 15 passing; library tests: 24 passing.
+* Isolated actual HA 2026.10.2 engine test passed in GitHub Actions run
+  [39921065027](https://github.com/twids/TibberHA/actions/runs/39921065027).
+  Network was disabled, Tibber services simulated. Verified plug-in below 40,
+  no repeated SoC writes below threshold, clearing/reporting once at 40,
+  plug-in above 40, unavailable-to-on not creating a session, and schedule
+  failure preventing SoC writes and automatic retries. Startup with idle state
+  also performed no writes. This is engine evidence, not a physical charging test.
 
 Still required: physical plug-in below 40%, threshold crossing at 40%, restart
 recovery/failure scenarios and an observed weekday morning outcome. Read-back

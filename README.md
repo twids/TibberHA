@@ -55,3 +55,7 @@ policy. Weekdays currently mean Monday-Friday, without public-holiday exclusions
 Offline tests cover structured read-back and the actual blueprint's date template,
 including Friday/weekend selection and both Stockholm DST changes. They do not
 prove cloud charging behavior.
+
+CI also runs `tools/verify_ha_engine.py` in the official HA 2026.10.2 container
+with networking disabled and simulated Tibber services. It exercises plug-in,
+the 40% threshold, one-shot writes, unavailable recovery and schedule failure.
