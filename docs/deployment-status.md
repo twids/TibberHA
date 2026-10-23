@@ -15,7 +15,9 @@
   initialization of the already connected 99% car cleared departures, reported
   real SoC, and reached `{"deadline": null, "phase": "complete"}`. The live
   trace confirms service responses propagate through the blueprint's branches.
-* Existing 80% automation remains enabled. Reliable Tibber-side pause/resume
+* Existing 80% automation was subsequently verified **disabled** in HA's
+  automation editor. The earlier report that it remained enabled was incorrect.
+  Reliable Tibber-side pause/resume
   has not been identified; the minimum policy does not replace that function.
 * Offline integration tests: 15 passing. Full isolated HA engine test script
   is provided but NOT executed: local Docker daemon is unavailable.
