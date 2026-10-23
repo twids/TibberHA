@@ -12,7 +12,7 @@ import yaml
 from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.setup import async_setup_component
-from homeassistant import loader
+from homeassistant import loader, bootstrap
 
 ROOT = Path(__file__).resolve().parents[1]
 INPUTS = {"soc": "sensor.test_soc", "plugged": "binary_sensor.test_plug",
@@ -48,11 +48,11 @@ async def main():
             hass.services.async_register("tibber_ha", name, fake,
                                          supports_response=SupportsResponse.OPTIONAL)
         try:
-            assert await async_setup_component(hass, "homeassistant", {
-                "homeassistant": {"time_zone": "Europe/Stockholm"}})
-            assert await async_setup_component(hass, "input_text", {
-                "input_text": {"test_session": {"max": 255}}})
-            assert await async_setup_component(hass, "persistent_notification", {})
+            assert await bootstrap.async_from_config_dict({
+                "homeassistant": {"time_zone": "Europe/Stockholm"},
+                "input_text": {"test_session": {"max": 255}},
+                "persistent_notification": {},
+            }, hass) is hass
             hass.states.async_set(INPUTS["soc"], "20")
             hass.states.async_set(INPUTS["plugged"], "off")
             hass.states.async_set(INPUTS["location"], "home")
