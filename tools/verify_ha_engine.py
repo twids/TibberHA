@@ -53,12 +53,12 @@ async def main():
                 "homeassistant": {"time_zone": "Europe/Stockholm"},
                 "input_text": {"test_session": {"max": 255}},
                 "persistent_notification": {},
+                "automation": [config],
             }, hass) is hass
             hass.states.async_set(INPUTS["soc"], "20")
             hass.states.async_set(INPUTS["plugged"], "off")
             hass.states.async_set(INPUTS["location"], "home")
             hass.states.async_set(INPUTS["settings"], "connected", {"vehicle_id": "test-zoe"})
-            assert await async_setup_component(hass, "automation", {"automation": [config]})
             await hass.async_start()
             await hass.async_block_till_done()
             assert hass.states.get("automation.engine_verification") is not None, [
