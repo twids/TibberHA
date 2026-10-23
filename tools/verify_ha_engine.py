@@ -12,6 +12,7 @@ import yaml
 from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.setup import async_setup_component
+from homeassistant import loader
 
 ROOT = Path(__file__).resolve().parents[1]
 INPUTS = {"soc": "sensor.test_soc", "plugged": "binary_sensor.test_plug",
@@ -33,6 +34,7 @@ async def main():
     config["id"] = "tibber_engine_verification"
     with tempfile.TemporaryDirectory() as directory:
         hass = HomeAssistant(directory)
+        loader.async_setup(hass)
         calls = []
         fail_schedule = False
 
