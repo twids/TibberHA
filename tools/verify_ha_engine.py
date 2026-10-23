@@ -5,6 +5,7 @@ docker run --rm --network none -v C:/dev/TibberHA:/project:ro \
   /project/tools/verify_ha_engine.py
 """
 import asyncio
+import logging
 from pathlib import Path
 import tempfile
 
@@ -60,6 +61,9 @@ async def main():
             assert await async_setup_component(hass, "automation", {"automation": [config]})
             await hass.async_start()
             await hass.async_block_till_done()
+            assert hass.states.get("automation.engine_verification") is not None, [
+                (s.entity_id, s.state) for s in hass.states.async_all()
+            ]
             assert not calls, calls
 
             hass.states.async_set(INPUTS["plugged"], "on")
@@ -117,4 +121,5 @@ async def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     asyncio.run(main())
