@@ -101,3 +101,16 @@ https://github.com/twids/TibberHA/actions/runs/40013812557
 The incident recovery fix is installed and verified at code, engine and live
 read/startup levels. A new physical plug-in during an API outage and a real
 weekday <40% charge outcome remain field validation, not proven outcomes.
+
+### Field follow-up — 2026-10-26 01:16 Europe/Stockholm
+
+Read-only HA UI inspection shows a new physical plug-in on 25 October at
+19:25:17 CET and the session helper reaching complete at 19:25:25 CET.
+The selected history chart shows Renault SoC 97% for the 19:15–19:35 interval.
+This is a new above-minimum session, consistent with the successful verified
+schedule/SoC branch. The original detailed execution trace was not recovered;
+do not infer a test of unavailable-at-plug-in or a <40% morning outcome.
+TibberHA is connected continuously since 24 October 21:55:17 CEST (over
+28 hours at this inspection), automation remains on, and departures are empty.
+No charging settings or production sensor values were changed by this check.
+The <40% / first-40% / 06:00 field outcome is still pending.
